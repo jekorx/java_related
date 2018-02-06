@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context
+           http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <!--配置整合MyBatis-->
+    <!--1：配置数据库相关参数：properties的属性：${url}
+        system-properties-mode ：
+        系统属性模式，默认ENVIRONMENT（表示先找ENVIRONMENT，再找properties-ref/location的），
+        NEVER：表示永远不用ENVIRONMENT的，OVERRIDE类似于ENVIRONMENT
+        可解决：Access denied for user 'root'@'localhost' (using password:YES)
+    -->
+    <context:property-placeholder location="classpath:jdbc.properties,classpath:redis.properties"
+                                  system-properties-mode="NEVER"/>
+
+    <!--2：数据库连接池-->
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        <!--配置连接池属性-->
+        <property name="driverClassName" value="${mysql.driver}"/>
+        <property name="url" value="${mysql.url}"/>
+        <property name="username" value="${mysql.username}"/>
+        <property name="password" value="${mysql.password}"/>
+        <!--配置私有属性-->
+        <!--初始化连接大小-->
+        <property name="initialSize" value="1"/>
+        <!--连接池最大使用连接数量-->
+        <property name="maxActive" value="30"/>
+        <!--连接池最小空闲-->
+        <property name="minIdle" value="1"/>
+        <!--获取连接最大等待时间-->
+        <property name="maxWait" value="1000"/>
+        <!--验证连接是否成功, SQL SELECT 指令至少要返回一行  (测试/验证连接池连接的SQL语句也因数据库而异)-->
+        <property name="validationQuery" value="SELECT 1"/>
+        <!--申请连接时执行validationQuery检测连接是否有效，做了这个配置会降低性能。-->
+        <property name="testOnBorrow" value="false"/>
+        <!--归还连接时执行validationQuery检测连接是否有效，做了这个配置会降低性能-->
+        <property name="testOnReturn" value="false"/>
+        <!--配置一个连接在池中最小生存的时间，单位是毫秒-->
+        <property name="minEvictableIdleTimeMillis" value="300000"/>
+        <!--建议配置为true，不影响性能，并且保证安全性。申请连接的时候检测，
+            如果空闲时间大于timeBetweenEvictionRunsMillis，执行validationQuery检测连接是否有效。-->
+        <property name="testWhileIdle" value="true"/>
+        <!--配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒-->
+        <property name="timeBetweenEvictionRunsMillis" value="30000"/>
+        <!--要启用PSCache，必须配置大于0，当大于0时，poolPreparedStatements自动触发修改为true。-->
+        <property name="maxOpenPreparedStatements" value="0"/>
+        <!--是否缓存preparedStatement，也就是PSCache。
+            PSCache对支持游标的数据库性能提升巨大，比如说oracle。
+            在mysql5.5以下的版本中没有PSCache功能，建议关闭掉。5.5及以上版本有PSCache，建议开启。-->
+        <property name="poolPreparedStatements" value="false"/>
+        <!--指定每个PSCache连接上PSCache的大小-->
+        <property name="maxPoolPreparedStatementPerConnectionSize" value="20"/>
+        <!--配置监控统计拦截的filters 去掉后监控界面sql无法统计
+            开启web监控、开启sql防火墙-->
+        <property name="filters" value="stat,wall"/>
+        <!--获取连接失败重试次数-->
+        <property name="connectionErrorRetryAttempts" value="2"/>
+    </bean>
+
+    <!--3：配置SqlSessionFactory对象-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!--注入数据库连接池-->
+        <property name="dataSource" ref="dataSource"/>
+        <!--配置MyBatis全局配置文件：mybatis-config.xml-->
+        <property name="configLocation" value="classpath:mybatis-config.xml"/>
+        <!--扫描Entity包，使用别名-->
+        <property name="typeAliasesPackage" value="com.ssm.entity"/>
+        <!--扫描sql配置文件：mapper需要的配置文件-->
+        <property name="mapperLocations" value="classpath:mapper/*.xml"/>
+    </bean>
+
+    <!--4：配置扫描Dao接口包，动态实现Dao接口，注入到spring容器-->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!--注入sqlSessionFactory-->
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+        <!--需要扫描的Dao接口包-->
+        <property name="basePackage" value="com.ssm.dao"/>
+    </bean>
+
+    <!--redisDao配置-->
+    <bean id="redisDao" class="com.ssm.dao.cache.RedisDao">
+        <constructor-arg index="0" value="${redis.host}"/>
+        <constructor-arg index="1" value="${redis.port}"/>
+    </bean>
+
+</beans>
